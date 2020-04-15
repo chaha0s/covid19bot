@@ -6,7 +6,7 @@ Install it with *pip install python-telegram-bot*
 
 Before running
 *Set BOTTOKEN in each file before using it.*
-*Make a blank .txt file "ids.txt" in the same directory.
+*Make a blank .txt file "ids.txt" in the same directory.*
 
 ###### main.py 
 - The main file.Keep it runing for the bot to be able to respond.
