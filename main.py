@@ -5,12 +5,11 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
 import urllib.parse
-from source2 import mAllInfo
-from source2 import mStateInfo
-from getInformation import get_stats_total
 
-# SET BOT TOKEN HERE
-BOTTOKEN=''
+from getInformation import *
+
+with open("Token",'r') as f:
+    BOTTOKEN=f.readline()
 
 
 # Enable logging
@@ -23,13 +22,13 @@ markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
 
 def messageWithPurpose(message,id):
-    # Just to store Names of those who use the bot
+    # Just to store Names of those who use the bot.
     id=str(id)
     url='https://api.telegram.org/bot'+BOTTOKEN+'/sendMessage?chat_id='
     send=requests.get(url+id+'&text='+urllib.parse.quote(message))
     response=send.json()
     try:
-        with open('msg.txt','a') as f:
+        with open('Users.txt','a') as f:
             try:
                 lname=str(response['result']['chat']['last_name'])
             except:
@@ -38,21 +37,6 @@ def messageWithPurpose(message,id):
     except:
         pass
 
-def get_state_total(state):
-    total=0
-    data=requests.get('https://api.covid19india.org/state_district_wise.json')
-    data=data.json()
-    STATE=''
-    dat=[]
-    for x,y in data.items():
-        for district in y['districtData']:
-            if x==state:
-                STATE=STATE+district+" : " + str(data[x]['districtData'][district]['confirmed']) +"\n"
-                Number=(data[x]['districtData'][district]['confirmed'])
-                total=total+Number
-    dat.append(STATE)
-    dat.append(total)
-    return dat
 
 def stop(update, context):
     userdata = context.dispatcher.user_data
@@ -66,7 +50,7 @@ def stop(update, context):
         with open('ids.txt','w') as f:
             for ids in data:
                 f.write(str(ids)+"\n")
-            print('Reemoved a user.Final Count:'+str(len(list(dict.fromkeys(data)))))
+            print('Removed a user.Final Count:'+str(len(list(dict.fromkeys(data)))))
     update.message.reply_text("Sorry to see you go.\nIf you could please drop a quick feedback at https://forms.gle/aRuUcrmg6trZX1wt7\n\nStay safe.",
         reply_markup=markup)
     return CHOOSING
@@ -95,12 +79,12 @@ def regular_choice(update, context):
     text = update.message.text
     if text=="India":
         count=get_stats_total()
-        mData=mAllInfo()
+        mData=rootnetCountry()
         msg="Number of all COVID-19 cases in " + text +" : " + str(count)+"\n\nNumber of Cured cases : "+str(mData[1])+"\n\nNumber of Deaths : "+str(mData[2])
         update.message.reply_text(msg,reply_markup=markup)
         return CHOOSING
-    count=get_state_total(text)
-    mData=mStateInfo(text)
+    count=get_state_total_wDistricts(text)
+    mData=rootnetState(text)
     if len(mData)!=0:
         msg="Number of all COVID-19 cases in " + text +" : " + str(count[1])+"\n\nNumber of Cured cases : "+str(mData[1])+"\n\nNumber of Deaths : "+str(mData[2])
     else:
@@ -125,6 +109,21 @@ def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
+def compare(update, context):
+    text = update.message.text
+    if len(text)==8:
+        count=get_stats_total()
+        mData=mCountryInfo()
+        msg="MOHFW : "+ str(count)+"\n\n"+"COVID19INDIA : "+str(mData)
+        update.message.reply_text(msg+"\n\nUse /compare State Name for state info. eg.\n/compare Himachal Pradesh")
+        return CHOOSING
+    msg=text.replace("/compare ","")
+    print(msg)
+    count=get_state_total(msg)
+    mData=mStateInfo(msg)
+    msg="MOHFW : "+ str(count)+"\n\n"+"COVID19INDIA : "+str(mData)
+    update.message.reply_text(msg,reply_markup=markup)
+
 
 def main():
     updater = Updater(BOTTOKEN, use_context=True, request_kwargs={'read_timeout': 6, 'connect_timeout': 7})
@@ -144,6 +143,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.regex('^(India|Delhi|Andhra Pradesh|Arunachal Pradesh|Assam|Bihar|Chhattisgarh|Goa|Gujarat|Haryana|Himachal Pradesh|Jharkhand|Karnataka|Kerala|Madhya Pradesh|Maharashtra|Manipur|Mizoram|Odisha|Punjab|Rajasthan|Tamil Nadu|Telangana|Uttar Pradesh|Uttarakhand|West Bengal|Ladakh|Jammu and Kashmir|Puducherry|Chandigarh|Andaman and Nicobar Islands)$'),regular_choice))
     dp.add_handler(CommandHandler("stop", stop))
     dp.add_handler(CommandHandler("help", help))
+    dp.add_handler(CommandHandler("compare", compare))
     dp.add_handler(conv_handler)
     dp.add_error_handler(error)
     updater.start_polling()
